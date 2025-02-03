@@ -1,0 +1,67 @@
+services:
+  db:
+    image: ankane/pgvector:latest
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql 
+    environment:
+      - POSTGRES_DB=ragchatbot
+      - POSTGRES_USER=siddharthbajpai
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U siddharthbajpai -d ragchatbot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app
+      - media_data:/app/media
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - POSTGRES_DB=ragchatbot
+      - POSTGRES_USER=siddharthbajpai
+      - POSTGRES_HOST=db
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DJANGO_DEBUG=True
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        while ! nc -z db 5432; do
+          sleep 1
+        done &&
+        echo 'Database is up!' &&
+        python manage.py makemigrations &&
+        python manage.py migrate &&
+        python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+      
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - WDS_SOCKET_PORT=0
+      - WATCHPACK_POLLING=true
+      - REACT_APP_BACKEND_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  media_data:

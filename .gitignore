@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Node
+node_modules/
+build/
+.env.local
+
+# Database
+*.sqlite3
+
+# Media files
+media/
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+.DS_Store
